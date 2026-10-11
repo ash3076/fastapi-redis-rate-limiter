@@ -8,10 +8,18 @@ from jwtService import generate_token , current_user
 from fastapi.security import OAuth2PasswordRequestForm
 from redis_client import redis_client
 from rate_limiter import rate_limit
+from fastapi.middleware.cors import CORSMiddleware
 
 Base.metadata.create_all(engine)
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware ,
+    allow_origins=["http://localhost:5173"],
+    allow_methods=["*"],
+    allow_headers=["*"]
+)
 
 def get_db():
     db = sessionLocal()
@@ -51,14 +59,15 @@ def register_user(register:register_schema , db :Session = Depends(get_db)):
 # for login 
 @app.post("/login")
 def login_user(
-    form_data: OAuth2PasswordRequestForm = Depends(),
+    # form_data: OAuth2PasswordRequestForm = Depends(),
+    user:register_schema,
     db: Session = Depends(get_db),
     _: None = Depends(rate_limit)
 ):
     # OAuth2 calls this field "username"
     # We use it to find our user
     register_user = db.query(register_db).filter(
-        register_db.username == form_data.username
+        register_db.username == user.username
     ).first()
 
     if not register_user:
@@ -68,7 +77,7 @@ def login_user(
         )
 
     if not verify_password(
-        form_data.password,
+        user.password,
         register_user.password
     ):
         raise HTTPException(
